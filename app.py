@@ -11,11 +11,15 @@ import eventlet
 
 eventlet.monkey_patch()  # Patch các thư viện chuẩn để hoạt động với eventlet
 from utils import check_in_out, is_landing, warp_point
+from flask import send_from_directory
+import os
 
 output_video_dir = "output_videos"
 output_image_dir = "out_images"
 output_time_file = "time_log.txt"
-video_path = "videos/Pickleball Thủ Đô TV Live Stream - Pickleball Thủ Đô TV (720p, h264).mp4"
+video_path = (
+    "videos/Pickleball Thủ Đô TV Live Stream - Pickleball Thủ Đô TV (720p, h264).mp4"
+)
 out_video_path = os.path.join(output_video_dir, "full_video_output.mp4")
 os.makedirs(output_video_dir, exist_ok=True)
 os.makedirs(output_image_dir, exist_ok=True)
@@ -43,12 +47,23 @@ out = None
 src_pts = None
 dst_pts = np.float32([[0, 0], [300, 0], [300, 600], [0, 600]])
 H = None
+show_tracking = False
 
 
 # Vẽ hình sân bóng từ 4 điểm góc trên frame
 def draw_field(frame, src_pts):
     pts = src_pts.astype(np.int32).reshape((-1, 1, 2))  # Chuyển sang định dạng phù hợp
     cv2.polylines(frame, [pts], isClosed=True, color=(0, 255, 0), thickness=2)
+
+
+@app.route("/output_videos/<filename>")
+def download_video(filename):
+    return send_from_directory("output_videos", filename)
+
+
+@app.route("/out_images/<filename>")
+def download_image(filename):
+    return send_from_directory("out_images", filename)
 
 
 @socketio.on("corner_points")
@@ -130,13 +145,19 @@ def handle_stop():
     )
 
 
+@socket.on("show_tracking")
+def handle_show_tracking():
+    global show_tracking
+    show_tracking = True
+
+
 last_positions = []
 
 from datetime import datetime
 
 
 def generate_frames():
-    global start_tracking, dst_pts, out
+    global start_tracking, dst_pts, out, show_tracking
     with open(output_time_file, "w") as time_file:
         while True:
             with video_lock:  # Khóa để tránh xung đột truy cập
@@ -176,18 +197,20 @@ def generate_frames():
                             track.append((float(x), float(y)))
                             if len(track) > 30:
                                 track.pop(0)
-
-                            # Vẽ đường đi của bóng
-                            points = (
-                                np.hstack(track).astype(np.int32).reshape((-1, 1, 2))
-                            )
-                            cv2.polylines(
-                                current_frame,
-                                [points],
-                                isClosed=False,
-                                color=(230, 230, 230),
-                                thickness=2,
-                            )
+                            if show_tracking:
+                                # Vẽ đường đi của bóng
+                                points = (
+                                    np.hstack(track)
+                                    .astype(np.int32)
+                                    .reshape((-1, 1, 2))
+                                )
+                                cv2.polylines(
+                                    current_frame,
+                                    [points],
+                                    isClosed=False,
+                                    color=(230, 230, 230),
+                                    thickness=2,
+                                )
                         for track_id, track in track_history.items():
                             if len(track) >= 3:
                                 for i in range(1, len(track) - 1):
@@ -218,13 +241,12 @@ def generate_frames():
 
                                             # Emit về client
                                             timestamp = time.strftime("%H:%M:%S")
-                                            print(frame.shape)
+
                                             timestamp_name = datetime.now().strftime(
                                                 "%Y%m%d_%H%M%S_%f"
                                             )
                                             filename = f"out_images/{status}_{timestamp_name}.png"
                                             cv2.imwrite(filename, frame)
-                                            print(cx, cy)
                                             socketio.emit(
                                                 "ball_status",
                                                 {
