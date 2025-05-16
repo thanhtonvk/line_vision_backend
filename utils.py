@@ -19,3 +19,17 @@ def is_landing(track, i, threshold=15):
     d1 = np.linalg.norm(np.array(track[i]) - np.array(track[i - 1]))
     d2 = np.linalg.norm(np.array(track[i + 1]) - np.array(track[i]))
     return d1 > threshold and d2 < threshold
+def to_background_coords(x, y, field_size=(300, 600), background_size=(500, 800)):
+    field_width, field_height = field_size
+    bg_width, bg_height = background_size
+
+    scale_x = bg_width / field_width
+    scale_y = bg_height / field_height
+
+    bg_x = int(x * scale_x)
+    bg_y = int(y * scale_y)
+
+    bg_x = max(0, min(bg_x, bg_width))
+    bg_y = max(0, min(bg_y, bg_height))
+
+    return bg_x, bg_y

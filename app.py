@@ -10,7 +10,7 @@ import time
 import eventlet
 
 eventlet.monkey_patch()  # Patch các thư viện chuẩn để hoạt động với eventlet
-from utils import check_in_out, is_landing, warp_point
+from utils import check_in_out, is_landing, to_background_coords, warp_point
 from flask import send_from_directory
 import os
 
@@ -48,6 +48,9 @@ src_pts = None
 dst_pts = np.float32([[0, 0], [300, 0], [300, 600], [0, 600]])
 H = None
 show_tracking = False
+
+san_x = 300
+san_y = 600
 
 
 # Vẽ hình sân bóng từ 4 điểm góc trên frame
@@ -198,7 +201,6 @@ def generate_frames():
                             if len(track) > 30:
                                 track.pop(0)
                             if show_tracking:
-                                # Vẽ đường đi của bóng
                                 points = (
                                     np.hstack(track)
                                     .astype(np.int32)
@@ -235,8 +237,9 @@ def generate_frames():
                                                     / 1000
                                                 ),
                                             )
+                                            new_cx, new_cy = to_background_coords((cx,cy))
                                             time_file.write(
-                                                f"{status};{timestamp};{cx};{cy}\n"
+                                                f"{status};{timestamp};{new_cx};{new_cy}\n"
                                             )
 
                                             # Emit về client
@@ -253,8 +256,8 @@ def generate_frames():
                                                     "status": status,
                                                     "timestamp": timestamp,
                                                     "image": timestamp + ".png",
-                                                    "x": cx,
-                                                    "y": cy,
+                                                    "x": new_cx,
+                                                    "y": new_cy,
                                                 },
                                             )
                 except Exception as e:
