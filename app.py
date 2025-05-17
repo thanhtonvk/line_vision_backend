@@ -148,7 +148,7 @@ def handle_stop():
     )
 
 
-@socket.on("show_tracking")
+@socketio.on("show_tracking")
 def handle_show_tracking():
     global show_tracking
     show_tracking = True
