@@ -237,7 +237,7 @@ def generate_frames():
                                                     / 1000
                                                 ),
                                             )
-                                            new_cx, new_cy = to_background_coords((cx,cy))
+                                            new_cx, new_cy = to_background_coords(cx,cy)
                                             time_file.write(
                                                 f"{status};{timestamp};{new_cx};{new_cy}\n"
                                             )
